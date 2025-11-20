@@ -4,16 +4,19 @@ using System.Collections;
 [RequireComponent(typeof(Rigidbody))]
 public class WheelchairController : MonoBehaviour
 {
+    [Header("Camera Connection (필수)")]
+    public WheelchairCamera camScript; // 방금 만든 카메라 스크립트를 여기에 연결하세요!
+
     [Header("Movement Settings")]
-    public float moveSpeed = 2500f;   // 전진 힘
-    public float turnSpeed = 1500f;   // 회전 힘 (높을수록 제자리 턴이 빠름)
+    public float moveSpeed = 2500f;
+    public float turnSpeed = 1500f;
 
     [Header("Resistance")]
-    public float moveDamping = 2f;    // 이동 저항
-    public float turnDamping = 5f;    // 회전 저항
+    public float moveDamping = 2f;
+    public float turnDamping = 5f;
 
     [Header("Stability")]
-    public bool lockTilt = true;      // 체크하면 절대 안 넘어짐 (X, Z 회전 강제 고정)
+    public bool lockTilt = true;
 
     [Header("Grandma Settings")]
     public GameObject grandmaRoot;
@@ -34,7 +37,6 @@ public class WheelchairController : MonoBehaviour
         rb.mass = 60f;
         wheelchairColliders = GetComponentsInChildren<Collider>();
 
-        // 1. 기본적으로 물리 엔진의 회전 잠금 사용
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
 
         if (grandmaRoot != null)
@@ -43,7 +45,6 @@ public class WheelchairController : MonoBehaviour
             grandmaLimbs = grandmaRoot.GetComponentsInChildren<Rigidbody>();
             grandmaColliders = grandmaRoot.GetComponentsInChildren<Collider>();
 
-            // 할머니 입양 & 충돌 무시
             grandmaRoot.transform.SetParent(this.transform);
             IgnoreCollisionBetweenGrandmaAndWheelchair(true);
             SetRagdollState(false);
@@ -54,38 +55,23 @@ public class WheelchairController : MonoBehaviour
 
     void FixedUpdate()
     {
-        // 물리 설정 갱신
         rb.linearDamping = moveDamping;
         rb.angularDamping = turnDamping;
 
-        // [핵심 1] 입력 계산 (탱크 컨트롤 로직)
         float leftInput = 0f;
         float rightInput = 0f;
 
         if (Input.GetKey(KeyCode.Q)) leftInput = 1f;
         else if (Input.GetKey(KeyCode.A)) leftInput = -1f;
-
         if (Input.GetKey(KeyCode.E)) rightInput = 1f;
         else if (Input.GetKey(KeyCode.D)) rightInput = -1f;
 
-        // 이동 입력 = (왼쪽 + 오른쪽)
-        // 예: 둘 다 1이면 전진(2), 하나만 1이면 전진(1), 서로 반대면(1, -1) 전진(0)
         float moveForce = (leftInput + rightInput) * moveSpeed;
-
-        // 회전 입력 = (왼쪽 - 오른쪽)
-        // 예: 왼쪽만(1) -> 1(우회전), 오른쪽만(1) -> -1(좌회전), 서로 반대(1, -1) -> 2(급회전)
         float turnTorque = (leftInput - rightInput) * turnSpeed;
 
-        // [핵심 2] 힘과 토크를 분리해서 적용 (안정성 최고)
-        // 이제 바퀴 위치(Transform)가 필요 없습니다. 중심에서 힘이 나갑니다.
-        if (moveForce != 0)
-            rb.AddRelativeForce(Vector3.forward * moveForce);
+        if (moveForce != 0) rb.AddRelativeForce(Vector3.forward * moveForce);
+        if (turnTorque != 0) rb.AddRelativeTorque(Vector3.up * turnTorque);
 
-        if (turnTorque != 0)
-            rb.AddRelativeTorque(Vector3.up * turnTorque);
-
-        // [핵심 3] 강제 오뚝이 기능 (비틀어짐 완전 차단)
-        // 회전하다가 X, Z축이 조금이라도 틀어지면 강제로 0으로 맞춥니다.
         if (lockTilt && rb.constraints != RigidbodyConstraints.None)
         {
             Vector3 currentRotation = transform.rotation.eulerAngles;
@@ -103,14 +89,19 @@ public class WheelchairController : MonoBehaviour
 
         if (currentImpact > crashThreshold)
         {
-            // 사고 발생! 오뚝이 기능 해제 & 물리 잠금 해제 -> 구르기 시작
+            // [사고 발생]
             lockTilt = false;
             rb.constraints = RigidbodyConstraints.None;
-
             grandmaRoot.transform.SetParent(null);
             SetRagdollState(true);
 
-            Debug.Log("쾅! 대형 사고! 할머니 사출!");
+            // [핵심 추가] 카메라에게 할머니 엉덩이를 따라가라고 명령!
+            if (camScript != null && grandmaHips != null)
+            {
+                camScript.FocusOnRagdoll(grandmaHips.transform);
+            }
+
+            Debug.Log("쾅! 할머니 사출! 카메라 전환!");
 
             if (grandmaHips != null)
                 grandmaHips.AddForce(Vector3.up * 500f + transform.forward * 500f, ForceMode.Impulse);
