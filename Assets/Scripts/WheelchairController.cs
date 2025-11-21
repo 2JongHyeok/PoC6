@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using Sirenix.OdinInspector;
 
 [RequireComponent(typeof(Rigidbody))]
 public class WheelchairController : MonoBehaviour
@@ -8,10 +9,17 @@ public class WheelchairController : MonoBehaviour
     public WheelchairCamera camScript;
 
     [Header("Movement Settings")]
+    
+    [TabGroup("Setup")]
+    [SerializeField]
     public float moveSpeed = 2500f;
+    [TabGroup("Setup")]
+    [SerializeField]
     public float turnSpeed = 1500f;
 
     [Header("Resistance")]
+    [SerializeField]
+    [HideIf(@"turnSpeed")]
     public float moveDamping = 2f;
     public float turnDamping = 5f;
 
@@ -25,15 +33,15 @@ public class WheelchairController : MonoBehaviour
     public float crashThreshold = 25000f;
     public float safetyDelay = 1.0f;
 
-    // [»õ·Î Ãß°¡µÊ] »ç°í ³¯ ¶§ ³¯¾Æ°¡´Â Èû Á¶Àı (¿©±â¼­ Á¶ÀıÇÏ¼¼¿ä!)
-    [Header("Crash Settings (»ç°í °­µµ Á¶Àı)")]
-    [Tooltip("ÈÙÃ¼¾î°¡ ³¯¾Æ°¡´Â Èû (±âº»°ª: 2000)")]
+    // [ìƒˆë¡œ ì¶”ê°€ë¨] ì‚¬ê³  ë‚  ë•Œ ë‚ ì•„ê°€ëŠ” í˜ ì¡°ì ˆ (ì—¬ê¸°ì„œ ì¡°ì ˆí•˜ì„¸ìš”!)
+    [Header("Crash Settings (ì‚¬ê³  ê°•ë„ ì¡°ì ˆ)")]
+    [Tooltip("íœ ì²´ì–´ê°€ ë‚ ì•„ê°€ëŠ” í˜ (ê¸°ë³¸ê°’: 2000)")]
     public float wheelchairFlyForce = 2000f;
 
-    [Tooltip("ÈÙÃ¼¾î°¡ ¹ğ±Û¹ğ±Û µµ´Â Èû (±âº»°ª: 1000)")]
+    [Tooltip("íœ ì²´ì–´ê°€ ë±…ê¸€ë±…ê¸€ ë„ëŠ” í˜ (ê¸°ë³¸ê°’: 1000)")]
     public float wheelchairSpinForce = 1000f;
 
-    [Tooltip("ÇÒ¸Ó´Ï°¡ ³¯¾Æ°¡´Â Èû (±âº»°ª: 1500)")]
+    [Tooltip("í• ë¨¸ë‹ˆê°€ ë‚ ì•„ê°€ëŠ” í˜ (ê¸°ë³¸ê°’: 1500)")]
     public float grandmaFlyForce = 1500f;
 
 
@@ -105,7 +113,7 @@ public class WheelchairController : MonoBehaviour
 
         float currentImpact = collision.impulse.magnitude;
 
-        // Ãæ°İ·®ÀÌ Å©°Å³ª OR Obstacle ÅÂ±×¸é »ç°í
+        // ì¶©ê²©ëŸ‰ì´ í¬ê±°ë‚˜ OR Obstacle íƒœê·¸ë©´ ì‚¬ê³ 
         if (currentImpact > crashThreshold || collision.gameObject.CompareTag("Obstacle"))
         {
             Crash(collision);
@@ -116,38 +124,38 @@ public class WheelchairController : MonoBehaviour
     {
         isCrashed = true;
 
-        // 1. Á¦¾à ÇØÁ¦
+        // 1. ì œì•½ í•´ì œ
         lockTilt = false;
         rb.constraints = RigidbodyConstraints.None;
 
-        // 2. ÀúÇ× Á¦°Å (Àß ±¸¸£°Ô)
+        // 2. ì €í•­ ì œê±° (ì˜ êµ¬ë¥´ê²Œ)
         rb.linearDamping = 0.05f;
         rb.angularDamping = 0.05f;
         rb.centerOfMass = Vector3.zero;
 
-        // 3. ÇÒ¸Ó´Ï ºĞ¸®
+        // 3. í• ë¨¸ë‹ˆ ë¶„ë¦¬
         if (grandmaRoot != null)
         {
             grandmaRoot.transform.SetParent(null);
             SetRagdollState(true);
         }
 
-        // 4. Ä«¸Ş¶ó ÀüÈ¯
+        // 4. ì¹´ë©”ë¼ ì „í™˜
         if (camScript != null && grandmaHips != null)
         {
             camScript.FocusOnRagdoll(grandmaHips.transform);
         }
 
-        Debug.Log("Äç! »ç°í ¹ß»ı!");
+        Debug.Log("ì¾…! ì‚¬ê³  ë°œìƒ!");
 
-        // 5. Èû Àû¿ë (Inspector¿¡¼­ ¼³Á¤ÇÑ º¯¼ö »ç¿ë)
+        // 5. í˜ ì ìš© (Inspectorì—ì„œ ì„¤ì •í•œ ë³€ìˆ˜ ì‚¬ìš©)
         Vector3 hitDir = collision.contacts[0].normal;
 
-        // ÇÒ¸Ó´Ï ³¯¸®±â
+        // í• ë¨¸ë‹ˆ ë‚ ë¦¬ê¸°
         if (grandmaHips != null)
             grandmaHips.AddForce(Vector3.up * (grandmaFlyForce * 0.5f) + hitDir * grandmaFlyForce, ForceMode.Impulse);
 
-        // ÈÙÃ¼¾î ³¯¸®±â
+        // íœ ì²´ì–´ ë‚ ë¦¬ê¸°
         rb.AddForce(Vector3.up * (wheelchairFlyForce * 0.5f) + hitDir * wheelchairFlyForce, ForceMode.Impulse);
         rb.AddTorque(Random.insideUnitSphere * wheelchairSpinForce, ForceMode.Impulse);
     }
